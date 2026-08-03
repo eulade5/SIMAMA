@@ -7,11 +7,10 @@
 <meta name="description" content="Simama FC is a football club for kids who once slept on Kigali's streets. Today they play. Tomorrow, a team like this in every district in Rwanda." />
 
 <!-- ============================================================
-     SIMAMA FC  —  single-file site (HTML + CSS + JS)
-     Deploy: drop this index.html on Vercel / Netlify / GitHub Pages.
-     To make it LIVE (news uploads + real donations) see the notes
-     marked  >>> GO LIVE  further down and in the chat message.
-     Swap the demo photos: search for  data-swap  in the file.
+     SIMAMA FC  —  public website
+     Content (players, news, gallery, fundraising) loads live from
+     Supabase and is managed from admin.html. See README.md for setup.
+     Real donations: search for  >>> GO LIVE  to wire a payment link.
      ============================================================ -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -570,77 +569,110 @@
 <!-- lightbox -->
 <div class="lightbox" id="lightbox">
   <button class="close" id="lbClose" aria-label="Close"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-  <div class="lb-inner"><div class="ph" data-tint="ink" data-swap="Full photo"></div></div>
+  <div class="lb-inner" id="lbInner"><div class="ph" data-tint="ink" data-swap="Full photo"></div></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <script>
 /* =====================================================================
-   SIMAMA FC — data + interactions
-   Edit the arrays below to add players, news and photos.
-   Everything here is front-end. See ">>> GO LIVE" note in chat to wire
-   real news uploads (Supabase) and real donations (payment gateway).
+   SIMAMA FC — live site (data from Supabase)
+   Players, news, gallery and fundraising numbers all load from the
+   database and are managed from admin.html. No code edits needed to
+   add content — that's what the admin panel is for.
    ===================================================================== */
 
-// ---- EDIT ME: squad ----
-const PLAYERS = [
-  { name:"Eric",   num:9,  pos:"Striker",     tint:"ink"  },
-  { name:"Aline",  num:7,  pos:"Winger",      tint:"sun"  },
-  { name:"Kevin",  num:4,  pos:"Defender",    tint:"grass"},
-  { name:"Divine", num:1,  pos:"Goalkeeper",  tint:"ink"  },
-  { name:"Yves",   num:10, pos:"Playmaker",   tint:"grass"},
-  { name:"Sandra", num:8,  pos:"Midfielder",  tint:"ink"  },
-  { name:"Patrick",num:5,  pos:"Defender",    tint:"sun"  },
-  { name:"Grace",  num:11, pos:"Forward",     tint:"grass"},
-];
-
-// ---- EDIT ME: news feed ----
-const NEWS = [
-  { date:"2026-07-28", title:"Simama wins the Kigali youth cup", excerpt:"A 2–1 comeback in the final capped the club's best season yet — and the whole bench stormed the pitch at full time." },
-  { date:"2026-07-10", title:"New boots for the whole squad", excerpt:"Thanks to 32 donors, every player started pre-season in boots that actually fit. Small thing. Huge thing." },
-  { date:"2026-06-22", title:"Scouting our second district", excerpt:"We've started conversations to launch a Simama team in a second district. One node closer to lighting the whole map." },
-];
-
-// ---- EDIT ME: gallery (big:true makes a tile span 2x2) ----
-const GALLERY = [
-  { tint:"grass", big:true }, { tint:"sun" }, { tint:"ink" },
-  { tint:"ink" }, { tint:"grass" }, { tint:"sun", big:true },
-  { tint:"sun" }, { tint:"ink" },
-];
-
-// ---- EDIT ME: fundraising numbers ----
-const GOAL = 40000, RAISED = 18600;
+const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.SIMAMA_CONFIG || {};
+const db = (window.supabase && SUPABASE_URL)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 const ballSVG = '<svg class="ball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="10"/><path d="M12 6l3.5 2.5L14 12h-4L8.5 8.5 12 6z"/></svg>';
-
-// build squad
-document.getElementById('squadGrid').innerHTML = PLAYERS.map(p => `
-  <article class="player reveal">
-    <div class="pic ph" data-tint="${p.tint}" data-swap="Player photo">${ballSVG}</div>
-    <span class="num">${p.num}</span>
-    <div class="meta"><div class="pname">${p.name}</div><div class="ppos">${p.pos}</div></div>
-  </article>`).join('');
-
-// build news
+const TINTS = ['grass','sun','ink'];
+const tint = i => TINTS[i % TINTS.length];
+const esc = s => (s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt = d => new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
-document.getElementById('newsGrid').innerHTML = NEWS.map(n => `
-  <article class="card reveal">
-    <div class="pic ph" data-tint="grass" data-swap="Article photo">${ballSVG}</div>
-    <div class="body">
-      <span class="date">${fmt(n.date)}</span>
-      <h3>${n.title}</h3>
-      <p>${n.excerpt}</p>
-      <a href="#" class="read">Read more →</a>
-    </div>
-  </article>`).join('');
 
-// build gallery
-document.getElementById('galGrid').innerHTML = GALLERY.map(g => `
-  <div class="gal-item ${g.big?'big':''}"><div class="ph" data-tint="${g.tint}" data-swap="Photo"></div></div>`).join('');
+// fundraising numbers (updated once settings load)
+let GOAL = 40000, RAISED = 18600;
+
+// image-or-placeholder helper
+const pic = (url, cls, tnt, label) => url
+  ? `<img class="${cls}" src="${esc(url)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">`
+  : `<div class="${cls} ph" data-tint="${tnt}" data-swap="${label}">${cls.includes('pic')?ballSVG:''}</div>`;
+
+// ---------- SQUAD ----------
+async function loadSquad(){
+  const grid = document.getElementById('squadGrid');
+  let rows = [];
+  if(db){
+    const { data } = await db.from('players').select('*').order('sort_order').order('number');
+    rows = data || [];
+  }
+  if(!rows.length){
+    grid.innerHTML = `<p style="grid-column:1/-1;color:var(--ink-soft)">No players yet — add them from the admin panel.</p>`;
+    return;
+  }
+  grid.innerHTML = rows.map((p,i) => `
+    <article class="player reveal in">
+      <div style="aspect-ratio:1/1">${pic(p.photo_url,'pic',tint(i),'Player photo')}</div>
+      <span class="num">${p.number ?? ''}</span>
+      <div class="meta"><div class="pname">${esc(p.name)}</div><div class="ppos">${esc(p.position||'')}</div></div>
+    </article>`).join('');
+}
+
+// ---------- NEWS ----------
+async function loadNews(){
+  const grid = document.getElementById('newsGrid');
+  let rows = [];
+  if(db){
+    const { data } = await db.from('articles').select('*').order('published_at',{ascending:false}).limit(6);
+    rows = data || [];
+  }
+  if(!rows.length){
+    grid.innerHTML = `<p style="color:var(--ink-soft)">No news yet — post your first update from the admin panel.</p>`;
+    return;
+  }
+  grid.innerHTML = rows.map((n,i) => `
+    <article class="card reveal in">
+      <div style="aspect-ratio:16/10">${pic(n.cover_url,'pic',tint(i),'Article photo')}</div>
+      <div class="body">
+        <span class="date">${fmt(n.published_at)}</span>
+        <h3>${esc(n.title)}</h3>
+        <p>${esc(n.excerpt||'')}</p>
+      </div>
+    </article>`).join('');
+}
+
+// ---------- GALLERY ----------
+async function loadGallery(){
+  const grid = document.getElementById('galGrid');
+  let rows = [];
+  if(db){
+    const { data } = await db.from('gallery').select('*').order('sort_order').order('created_at',{ascending:false});
+    rows = data || [];
+  }
+  if(!rows.length){
+    grid.innerHTML = `<p style="grid-column:1/-1;color:var(--chalk-dim)">Photos coming soon — upload them from the admin panel.</p>`;
+    return;
+  }
+  grid.innerHTML = rows.map((g,i) => `
+    <div class="gal-item ${g.featured?'big':''}" data-full="${esc(g.image_url)}" data-cap="${esc(g.caption||'')}">
+      ${pic(g.image_url,'',tint(i),'Photo')}
+    </div>`).join('');
+}
 
 // lightbox
 const lb = document.getElementById('lightbox');
+const lbInner = document.getElementById('lbInner');
 document.getElementById('galGrid').addEventListener('click', e => {
-  if(e.target.closest('.gal-item')) lb.classList.add('open');
+  const item = e.target.closest('.gal-item');
+  if(!item) return;
+  const full = item.dataset.full;
+  lbInner.innerHTML = full
+    ? `<img src="${full}" alt="${item.dataset.cap||''}" style="width:100%;height:100%;object-fit:cover">`
+    : `<div class="ph" data-tint="ink" data-swap="Full photo"></div>`;
+  lb.classList.add('open');
 });
 document.getElementById('lbClose').addEventListener('click', ()=>lb.classList.remove('open'));
 lb.addEventListener('click', e => { if(e.target===lb) lb.classList.remove('open'); });
@@ -691,7 +723,32 @@ const io = new IntersectionObserver((entries)=>{
   });
 },{threshold:.16});
 
-document.querySelectorAll('.reveal, .scoreboard, #donate').forEach(el=>io.observe(el));
+// ---------- SETTINGS (fundraising + scoreboard) ----------
+async function loadSettings(){
+  if(!db) return;
+  const { data } = await db.from('site_settings').select('*').eq('id',1).single();
+  if(!data) return;
+  GOAL   = Number(data.fundraise_goal)   || GOAL;
+  RAISED = Number(data.fundraise_raised) || RAISED;
+  // scoreboard values
+  const map = {
+    stat_players: data.stat_players, stat_seasons: data.stat_seasons,
+    stat_now: data.stat_districts_now, stat_goal: data.stat_districts_goal
+  };
+  const cells = document.querySelectorAll('.scoreboard [data-count]');
+  const vals = [data.stat_players, data.stat_seasons, data.stat_districts_now, data.stat_districts_goal];
+  cells.forEach((el,i)=>{ if(vals[i]!=null) el.dataset.count = vals[i]; });
+  // goal-of label + season text
+  const goalOf = document.querySelector('.goal-of');
+  if(goalOf) goalOf.innerHTML = `of <b>$${GOAL.toLocaleString()}</b> ${esc(data.season_label||'season goal')}`;
+}
+
+// boot: load settings first (so scoreboard/goal use live numbers), then content
+(async () => {
+  await loadSettings();
+  document.querySelectorAll('.reveal, .scoreboard, #donate').forEach(el=>io.observe(el));
+  loadSquad(); loadNews(); loadGallery();
+})();
 
 // contact form (front-end demo — wire to Supabase / Formspree / email to go live)
 document.getElementById('contactForm').addEventListener('submit', e=>{
