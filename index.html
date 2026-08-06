@@ -108,16 +108,14 @@
 
   /* ================= HERO ================= */
   .hero{position:relative;color:var(--chalk);overflow:hidden;
+    background:#0A3B2A url('hero-team.jpg') center 30%/cover no-repeat;}
+  .hero::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
     background:
-      radial-gradient(120% 90% at 85% -10%, rgba(255,176,56,.22), transparent 55%),
-      radial-gradient(90% 80% at 10% 110%, rgba(23,146,90,.35), transparent 60%),
-      linear-gradient(180deg,var(--pitch) 0%, var(--pitch-2) 100%);
-  }
+      radial-gradient(120% 90% at 85% -10%, rgba(255,176,56,.20), transparent 55%),
+      linear-gradient(90deg, rgba(9,32,24,.86) 0%, rgba(9,32,24,.55) 45%, rgba(9,32,24,.25) 100%),
+      linear-gradient(180deg, rgba(9,32,24,.35) 0%, rgba(9,32,24,.55) 55%, rgba(9,32,24,.92) 100%);}
   .hero .wrap{position:relative;z-index:2;padding-block:clamp(64px,11vw,130px)}
-  /* faint pitch lines */
-  .pitch-lines{position:absolute;inset:0;z-index:1;opacity:.5;pointer-events:none}
-  .kit-number{position:absolute;right:-4%;top:-6%;font-family:'Anton',sans-serif;font-size:min(52vw,720px);
-    line-height:1;color:rgba(255,255,255,.03);z-index:1;pointer-events:none;user-select:none}
+  .pitch-lines,.kit-number{display:none}
   .hero-eyebrow{color:var(--sun)}
   h1.hero-title{font-family:'Anton',sans-serif;text-transform:uppercase;
     font-size:clamp(3.6rem,15vw,11rem);line-height:.86;letter-spacing:.005em;margin:.28em 0 .1em}
@@ -144,6 +142,7 @@
   .prose p{color:var(--ink-soft);font-size:1.08rem;line-height:1.65;margin-bottom:1.1rem;max-width:52ch}
   .prose p b{color:var(--ink)}
   .story-photo{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:4/5;box-shadow:0 40px 80px -40px rgba(10,42,32,.5)}
+  .story-img{width:100%;height:100%;object-fit:cover;object-position:62% center;display:block}
   .quote-chip{position:absolute;left:1.2rem;bottom:1.2rem;right:1.2rem;background:rgba(10,23,18,.82);
     backdrop-filter:blur(6px);color:var(--chalk);padding:1rem 1.2rem;border-radius:14px;border-left:4px solid var(--sun)}
   .quote-chip p{font-size:1rem;line-height:1.4;font-weight:600}
@@ -372,10 +371,7 @@
       </div>
     </div>
     <div class="story-photo reveal">
-      <!-- >>> SWAP: replace this .ph block with <img src="team-photo.jpg" alt="Simama FC squad"> -->
-      <div class="ph" data-tint="ink" data-swap="Swap in your team photo">
-        <svg class="ball" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6l3.5 2.5L14 12h-4L8.5 8.5 12 6z"/><path d="M8.5 8.5L5 10m11-1.5L19 10M10 12l-1.5 4M14 12l1.5 4"/></svg>
-      </div>
+      <img class="story-img" src="story-striker.jpg" alt="A Simama FC player in a match" loading="lazy" />
       <div class="quote-chip">
         <p>"On the street I was nobody. On the pitch I wear number 9."</p>
         <span>— A Simama striker, age 14</span>
@@ -594,7 +590,7 @@ const esc = s => (s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&
 const fmt = d => new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
 
 // fundraising numbers (updated once settings load)
-let GOAL = 40000, RAISED = 1000;
+let GOAL = 40000, RAISED = 18600;
 
 // image-or-placeholder helper
 const pic = (url, cls, tnt, label) => url
